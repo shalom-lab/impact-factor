@@ -232,3 +232,31 @@ export async function pushSpreadsheetToRepo(
     throw err;
   }
 }
+
+export async function deleteRepoSpreadsheet(
+  token: string,
+  repo: string,
+  branch: string,
+  dataPath: string,
+  fileName: string,
+  sha?: string
+): Promise<void> {
+  const [owner, repoName] = repo.split('/');
+  const path = repoFilePath(dataPath, validateFileName(fileName));
+  const octokit = createOctokit(token);
+
+  let fileSha = sha;
+  if (!fileSha) {
+    fileSha = await fetchFileSha(token, repo, branch, path);
+    if (!fileSha) throw new Error(`文件不存在: ${fileName}`);
+  }
+
+  await octokit.rest.repos.deleteFile({
+    owner,
+    repo: repoName,
+    path,
+    message: `Delete ${fileName} via SheetView`,
+    sha: fileSha,
+    branch
+  });
+}

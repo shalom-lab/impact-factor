@@ -9,11 +9,17 @@ import {
   type ReactNode
 } from 'react';
 import { DEFAULT_DATA_PATH, normalizeRepo } from '../constants';
-import { pushSpreadsheetToRepo, verifyGitHubAccessSimple } from '../lib/github';
+import { blobFromSpreadsheetContent, triggerBrowserDownload } from '../lib/download';
+import {
+  deleteRepoSpreadsheet,
+  fetchRepoSpreadsheetContent,
+  pushSpreadsheetToRepo,
+  verifyGitHubAccessSimple
+} from '../lib/github';
 import { loadDataFromGitHub } from '../lib/loadData';
 import { parseUploadedFile } from '../lib/parseData';
 import { clearSettings, loadSettings, saveCredentials } from '../lib/storage';
-import { validateDataPath } from '../lib/validation';
+import { repoFilePath, validateDataPath } from '../lib/validation';
 import type { AppSettings, CsvFileMeta, StoredCredentials, StoredFileEntry } from '../types';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -38,6 +44,9 @@ type AppContextValue = {
   clearAllSettings: () => void;
   uploadFiles: (files: File[]) => Promise<void>;
   refreshData: () => Promise<void>;
+  downloadFile: (fileName: string) => Promise<void>;
+  deleteFile: (fileName: string) => Promise<void>;
+  fileAction: 'download' | 'delete' | null;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -88,6 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [verifying, setVerifying] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [fileAction, setFileAction] = useState<'download' | 'delete' | null>(null);
   const loadRequestId = useRef(0);
 
   const configured = Boolean(settings.token?.trim() && settings.repo?.trim());
@@ -304,6 +314,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [settings, localFiles, fileShas]
   );
 
+  const downloadFile = useCallback(
+    async (fileName: string) => {
+      if (!settings.token?.trim()) {
+        throw new Error('请先在设置页配置 Token');
+      }
+
+      setFileAction('download');
+      setErrorMessage(null);
+      try {
+        const path = repoFilePath(settings.dataPath, fileName);
+        const raw = await fetchRepoSpreadsheetContent(
+          settings.token,
+          settings.repo,
+          settings.defaultBranch,
+          path
+        );
+        const blob = blobFromSpreadsheetContent(fileName, raw);
+        triggerBrowserDownload(blob, fileName);
+      } finally {
+        setFileAction(null);
+      }
+    },
+    [settings]
+  );
+
+  const deleteFile = useCallback(
+    async (fileName: string) => {
+      if (!settings.token?.trim()) {
+        throw new Error('请先在设置页配置 Token');
+      }
+      if (!settings.canWrite) {
+        throw new Error('Token 无写入权限，无法删除');
+      }
+
+      setFileAction('delete');
+      setErrorMessage(null);
+      try {
+        await deleteRepoSpreadsheet(
+          settings.token,
+          settings.repo,
+          settings.defaultBranch,
+          settings.dataPath,
+          fileName,
+          fileShas[fileName]
+        );
+
+        setLocalFiles((prev) => prev.filter((f) => f.fileName !== fileName));
+        setFileShas((prev) => {
+          const next = { ...prev };
+          delete next[fileName];
+          return next;
+        });
+        setSelectedFile((prev) => (prev?.fileName === fileName ? null : prev));
+        setInfoMessage(`已删除 ${fileName}`);
+      } finally {
+        setFileAction(null);
+      }
+    },
+    [settings, fileShas]
+  );
+
   const value: AppContextValue = {
     settings,
     files,
@@ -320,7 +391,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveAndVerifySettings,
     clearAllSettings,
     uploadFiles,
-    refreshData
+    refreshData,
+    downloadFile,
+    deleteFile,
+    fileAction
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

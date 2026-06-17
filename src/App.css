@@ -277,8 +277,23 @@
 
 .file-meta--compact .file-meta__row {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.file-meta__title {
+  display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.file-meta__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .file-meta--compact h3 {
@@ -842,6 +857,21 @@ th.sortable {
 .btn--ghost:hover:not(:disabled) {
   background: #f8fafc;
   color: #334155;
+}
+
+.btn--sm {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+}
+
+.btn--danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 .btn-icon {

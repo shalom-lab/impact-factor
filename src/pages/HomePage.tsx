@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileList } from '../components/FileList';
 import { DataTable } from '../components/DataTable';
@@ -15,8 +16,35 @@ export function HomePage() {
     verifying,
     configured,
     refreshData,
-    settings
+    settings,
+    downloadFile,
+    deleteFile,
+    fileAction
   } = useApp();
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function handleDownload() {
+    if (!selectedFile) return;
+    setActionError(null);
+    try {
+      await downloadFile(selectedFile.fileName);
+    } catch (err) {
+      setActionError((err as Error).message);
+    }
+  }
+
+  async function handleDelete() {
+    if (!selectedFile) return;
+    const name = selectedFile.fileName;
+    if (!window.confirm(`确定从仓库删除「${name}」吗？此操作不可撤销。`)) return;
+
+    setActionError(null);
+    try {
+      await deleteFile(name);
+    } catch (err) {
+      setActionError((err as Error).message);
+    }
+  }
 
   if (!configured) {
     return (
@@ -32,6 +60,8 @@ export function HomePage() {
       </div>
     );
   }
+
+  const busy = fileAction !== null;
 
   return (
     <div className="page page--home">
@@ -49,8 +79,30 @@ export function HomePage() {
         {selectedFile ? (
           <div className="file-meta file-meta--compact">
             <div className="file-meta__row">
-              <h3>{selectedFile.title}</h3>
-              <span className="file-meta__badge">{selectedFile.fileName}</span>
+              <div className="file-meta__title">
+                <h3>{selectedFile.title}</h3>
+                <span className="file-meta__badge">{selectedFile.fileName}</span>
+              </div>
+              <div className="file-meta__actions">
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={handleDownload}
+                  disabled={busy}
+                >
+                  {fileAction === 'download' ? '下载中…' : '下载'}
+                </button>
+                {settings.canWrite ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm btn--danger"
+                    onClick={handleDelete}
+                    disabled={busy}
+                  >
+                    {fileAction === 'delete' ? '删除中…' : '删除'}
+                  </button>
+                ) : null}
+              </div>
             </div>
             <div className="file-meta__stats">
               <span>{new Date(selectedFile.lastModified).toLocaleString()}</span>
@@ -60,6 +112,7 @@ export function HomePage() {
           </div>
         ) : null}
 
+        {actionError ? <div className="alert alert--error">{actionError}</div> : null}
         {errorMessage ? <div className="alert alert--error">{errorMessage}</div> : null}
         {infoMessage ? <div className="alert alert--info">{infoMessage}</div> : null}
         {loadState === 'loading' || verifying ? (
