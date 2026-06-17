@@ -1,5 +1,6 @@
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { normalizeHeaderKey, stripBom } from './encoding';
 
 export type ParsedFile = {
   fileName: string;
@@ -12,8 +13,19 @@ function titleFromFileName(fileName: string): string {
   return base.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function normalizeRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.map((row) => {
+    const next: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(row)) {
+      next[normalizeHeaderKey(key)] = value;
+    }
+    return next;
+  });
+}
+
 export function parseCsvText(text: string, fileName: string): ParsedFile {
-  const parsed = Papa.parse<Record<string, unknown>>(text, {
+  const cleaned = stripBom(text);
+  const parsed = Papa.parse<Record<string, unknown>>(cleaned, {
     header: true,
     skipEmptyLines: true,
     dynamicTyping: true
@@ -26,7 +38,7 @@ export function parseCsvText(text: string, fileName: string): ParsedFile {
   return {
     fileName,
     title: titleFromFileName(fileName),
-    rows: parsed.data
+    rows: normalizeRows(parsed.data)
   };
 }
 
@@ -46,7 +58,7 @@ export function parseXlsxBuffer(buffer: ArrayBuffer, fileName: string): ParsedFi
   return {
     fileName,
     title: titleFromFileName(fileName),
-    rows
+    rows: normalizeRows(rows)
   };
 }
 

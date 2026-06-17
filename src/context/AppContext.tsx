@@ -83,7 +83,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const applyLoadResult = useCallback((result: Awaited<ReturnType<typeof loadDataFromGitHub>>) => {
     setLocalFiles(result.files);
     setFileShas(result.fileShas);
-    setInfoMessage(result.hint ?? null);
+
+    if (result.loadErrors.length && result.files.length === 0) {
+      setErrorMessage(result.loadErrors.join('；'));
+      setInfoMessage(result.hint ?? null);
+    } else if (result.loadErrors.length) {
+      setErrorMessage(null);
+      setInfoMessage(`部分文件加载失败：${result.loadErrors.join('；')}`);
+    } else {
+      setErrorMessage(null);
+      setInfoMessage(result.hint ?? null);
+    }
 
     if (result.files.length === 1) {
       setSelectedFile(entryToMeta(result.files[0]));

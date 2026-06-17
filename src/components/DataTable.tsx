@@ -9,6 +9,7 @@ import {
   type SortingState
 } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
+import { computeNumericColumns, numericBlueBackground, toNumber } from '../lib/tableUtils';
 
 type DataTableProps = {
   rows: Record<string, unknown>[];
@@ -18,13 +19,21 @@ export function DataTable({ rows }: DataTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
 
+  const numericColumns = useMemo(() => computeNumericColumns(rows), [rows]);
+
   const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
     if (!rows.length) return [];
     return Object.keys(rows[0]).map((key) => ({
       header: key,
-      accessorKey: key
+      accessorKey: key,
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || value === undefined) return '';
+        return String(value);
+      },
+      meta: { numeric: numericColumns[key] }
     }));
-  }, [rows]);
+  }, [rows, numericColumns]);
 
   const table = useReactTable({
     data: rows,
@@ -68,6 +77,9 @@ export function DataTable({ rows }: DataTableProps) {
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
+                  const isNumeric = Boolean(
+                    (header.column.columnDef.meta as { numeric?: unknown })?.numeric
+                  );
                   return (
                     <th
                       key={header.id}
@@ -75,6 +87,7 @@ export function DataTable({ rows }: DataTableProps) {
                       className={canSort ? 'sortable' : undefined}
                     >
                       <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                      {isNumeric ? <span className="col-type-badge">#</span> : null}
                       {sorted ? (
                         <span className="sort-indicator">{sorted === 'asc' ? '↑' : '↓'}</span>
                       ) : null}
@@ -87,9 +100,21 @@ export function DataTable({ rows }: DataTableProps) {
           <tbody>
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const stats = (cell.column.columnDef.meta as { numeric?: { min: number; max: number } })
+                    ?.numeric;
+                  const num = stats ? toNumber(cell.getValue()) : null;
+                  const bg =
+                    stats && num !== null
+                      ? numericBlueBackground(num, stats.min, stats.max)
+                      : undefined;
+
+                  return (
+                    <td key={cell.id} style={bg ? { backgroundColor: bg } : undefined}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -130,4 +155,3 @@ export function DataTable({ rows }: DataTableProps) {
     </div>
   );
 }
-

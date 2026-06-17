@@ -1,4 +1,5 @@
 import { Octokit } from '@octokit/rest';
+import { decodeBase64ToBuffer, decodeBase64Utf8 } from './encoding';
 
 export async function verifyGitHubAccessSimple(
   repo: string,
@@ -70,19 +71,6 @@ export function createOctokit(token: string) {
 
 function normalizeDir(dataPath: string): string {
   return dataPath.trim().replace(/^\/+/, '').replace(/\/+$/, '') || 'data';
-}
-
-function decodeBase64Content(content: string): string {
-  return atob(content.replace(/\n/g, ''));
-}
-
-function decodeBase64ToBuffer(content: string): ArrayBuffer {
-  const binary = decodeBase64Content(content);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
 }
 
 function encodeBufferToBase64(buffer: ArrayBuffer): string {
@@ -168,7 +156,7 @@ export async function fetchRepoSpreadsheetContent(
 
   const lower = fileName.toLowerCase();
   if (lower.endsWith('.csv')) {
-    return { fileName, text: decodeBase64Content(data.content) };
+    return { fileName, text: decodeBase64Utf8(data.content) };
   }
 
   return { fileName, buffer: decodeBase64ToBuffer(data.content) };
