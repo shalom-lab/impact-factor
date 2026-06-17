@@ -11,17 +11,13 @@ export function FileList({ files, selectedFile, onSelect }: FileListProps) {
   if (!files.length) {
     return (
       <div className="file-list empty">
-        <p>暂无 CSV 文件，请将数据放入仓库的 data 目录。</p>
+        <p>暂无数据，请前往上传页面添加 CSV / XLSX 文件。</p>
       </div>
     );
   }
 
   return (
     <div className="file-list">
-      <div className="file-list__header">
-        <h2>文件选择列表</h2>
-        <p>共 {files.length} 个数据源</p>
-      </div>
       <ul>
         {files.map((file) => (
           <li key={file.fileName}>
@@ -39,4 +35,3 @@ export function FileList({ files, selectedFile, onSelect }: FileListProps) {
     </div>
   );
 }
-

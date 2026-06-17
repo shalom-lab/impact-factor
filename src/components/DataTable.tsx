@@ -43,7 +43,7 @@ export function DataTable({ rows }: DataTableProps) {
   });
 
   if (!rows.length) {
-    return <p>请选择任意 CSV 文件以查看数据。</p>;
+    return <p className="empty-hint">选择左侧文件，或前往上传页面添加数据。</p>;
   }
 
   return (

@@ -1,7 +1,14 @@
 {
-  "generatedAt": "2025-11-25T08:45:20.914Z",
-  "fileCount": 1,
+  "generatedAt": "2026-06-17T07:53:14.365Z",
+  "fileCount": 2,
   "files": [
+    {
+      "fileName": "2025-china.csv",
+      "title": "2025 China",
+      "relativePath": "data/2025-china.csv",
+      "size": 960725,
+      "lastModified": "2025-11-25T08:39:04.583Z"
+    },
     {
       "fileName": "sample-impact-factors.csv",
       "title": "Sample Impact Factors",
