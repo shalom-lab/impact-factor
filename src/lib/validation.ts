@@ -1,5 +1,5 @@
-/** 单文件最大 10MB */
-export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+/** 单文件最大 30MB */
+export const MAX_FILE_BYTES = 30 * 1024 * 1024;
 
 /** 单表最大行数 */
 export const MAX_ROWS = 100_000;

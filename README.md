@@ -23,7 +23,7 @@ location.reload();
 
 - **读取**：从仓库 `{dataPath}/` 目录加载 CSV / XLSX
 - **上传**：直接推送明文文件到 GitHub 同目录
-- **限制**：单文件最大 10MB，单表最多 100,000 行
+- **限制**：单文件最大 30MB，单表最多 100,000 行
 
 ```bash
 npm install
