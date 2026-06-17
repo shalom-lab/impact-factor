@@ -1,6 +1,7 @@
 import { fetchRepoSpreadsheetContent, listRepoSpreadsheets } from './github';
 import type { AppSettings, StoredFileEntry } from '../types';
 import { parseCsvText, parseXlsxBuffer } from './parseData';
+import { assertFileSize } from './validation';
 
 export type LoadDataResult = {
   files: StoredFileEntry[];
@@ -37,7 +38,9 @@ export async function loadDataFromGitHub(cfg: AppSettings): Promise<LoadDataResu
 
   for (const meta of spreadsheets) {
     try {
-      fileShas[meta.fileName] = meta.sha;
+      if (meta.size > 0) {
+        assertFileSize(meta.size, meta.fileName);
+      }
 
       const raw = await fetchRepoSpreadsheetContent(
         cfg.token,
@@ -53,10 +56,12 @@ export async function loadDataFromGitHub(cfg: AppSettings): Promise<LoadDataResu
           : null;
 
       if (!parsed) {
-        loadErrors.push(`${meta.fileName}: 无法识别文件格式`);
+        const reason = raw.buffer ? '工作表无数据或无法解析，已跳过' : '无法识别文件格式';
+        loadErrors.push(`${meta.fileName}: ${reason}`);
         continue;
       }
 
+      fileShas[meta.fileName] = meta.sha;
       files.push({
         fileName: parsed.fileName,
         title: parsed.title,

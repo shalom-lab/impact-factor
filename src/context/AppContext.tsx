@@ -4,14 +4,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode
 } from 'react';
-import { normalizeRepo } from '../constants';
+import { DEFAULT_DATA_PATH, normalizeRepo } from '../constants';
 import { pushSpreadsheetToRepo, verifyGitHubAccessSimple } from '../lib/github';
 import { loadDataFromGitHub } from '../lib/loadData';
 import { parseUploadedFile } from '../lib/parseData';
 import { clearSettings, loadSettings, saveCredentials } from '../lib/storage';
+import { validateDataPath } from '../lib/validation';
 import type { AppSettings, CsvFileMeta, StoredCredentials, StoredFileEntry } from '../types';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -19,7 +21,6 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 type AppContextValue = {
   settings: AppSettings;
   files: CsvFileMeta[];
-  localFiles: StoredFileEntry[];
   selectedFile: CsvFileMeta | null;
   rows: Record<string, unknown>[];
   loadState: LoadState;
@@ -30,8 +31,10 @@ type AppContextValue = {
   syncing: boolean;
   configured: boolean;
   setSelectedFile: (file: CsvFileMeta | null) => void;
-  setErrorMessage: (msg: string | null) => void;
-  saveAndVerifySettings: (draft: StoredCredentials) => Promise<AppSettings>;
+  saveAndVerifySettings: (draft: StoredCredentials) => Promise<{
+    settings: AppSettings;
+    loadWarnings: string[];
+  }>;
   clearAllSettings: () => void;
   uploadFiles: (files: File[]) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -44,7 +47,6 @@ function entryToMeta(entry: StoredFileEntry): CsvFileMeta {
   return {
     fileName: entry.fileName,
     title: entry.title,
-    relativePath: `local://${entry.fileName}`,
     size,
     lastModified: entry.uploadedAt
   };
@@ -57,11 +59,21 @@ function withVerifiedAccess(
   return {
     token: credentials.token.trim(),
     repo: normalizeRepo(credentials.repo),
-    dataPath: credentials.dataPath.trim(),
+    dataPath: credentials.dataPath.trim() || DEFAULT_DATA_PATH,
     defaultBranch: access.defaultBranch,
     canRead: access.canRead,
     canWrite: access.canWrite
   };
+}
+
+function resolveSelection(
+  files: StoredFileEntry[],
+  prev: CsvFileMeta | null
+): CsvFileMeta | null {
+  if (files.length === 0) return null;
+  if (files.length === 1) return entryToMeta(files[0]);
+  if (prev && files.some((f) => f.fileName === prev.fileName)) return prev;
+  return null;
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -76,36 +88,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [verifying, setVerifying] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const loadRequestId = useRef(0);
 
   const configured = Boolean(settings.token?.trim() && settings.repo?.trim());
   const files = useMemo(() => localFiles.map(entryToMeta), [localFiles]);
 
-  const applyLoadResult = useCallback((result: Awaited<ReturnType<typeof loadDataFromGitHub>>) => {
-    setLocalFiles(result.files);
-    setFileShas(result.fileShas);
+  const applyLoadResult = useCallback(
+    (result: Awaited<ReturnType<typeof loadDataFromGitHub>>, requestId: number) => {
+      if (requestId !== loadRequestId.current) return;
 
-    if (result.loadErrors.length && result.files.length === 0) {
-      setErrorMessage(result.loadErrors.join('；'));
-      setInfoMessage(result.hint ?? null);
-    } else if (result.loadErrors.length) {
-      setErrorMessage(null);
-      setInfoMessage(`部分文件加载失败：${result.loadErrors.join('；')}`);
-    } else {
-      setErrorMessage(null);
-      setInfoMessage(result.hint ?? null);
-    }
+      setLocalFiles(result.files);
+      setFileShas(result.fileShas);
+      setSelectedFile((prev) => resolveSelection(result.files, prev));
 
-    if (result.files.length === 1) {
-      setSelectedFile(entryToMeta(result.files[0]));
-    } else if (result.files.length === 0) {
-      setSelectedFile(null);
-    }
-  }, []);
+      if (result.loadErrors.length && result.files.length === 0) {
+        setErrorMessage(result.loadErrors.join('；'));
+        setInfoMessage(result.hint ?? null);
+      } else if (result.loadErrors.length) {
+        setErrorMessage(null);
+        setInfoMessage(`部分文件加载失败：${result.loadErrors.join('；')}`);
+      } else {
+        setErrorMessage(null);
+        setInfoMessage(result.hint ?? null);
+      }
+    },
+    []
+  );
 
   const loadAllData = useCallback(
     async (cfg: AppSettings) => {
+      const requestId = ++loadRequestId.current;
       const result = await loadDataFromGitHub(cfg);
-      applyLoadResult(result);
+      applyLoadResult(result, requestId);
       return result;
     },
     [applyLoadResult]
@@ -118,6 +132,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setInfoMessage(null);
     try {
       const access = await verifyGitHubAccessSimple(settings.repo, settings.token);
+      if (!access.canRead) throw new Error('Token 无法读取该仓库');
+
       const updated = withVerifiedAccess(settings, access);
       setSettings(updated);
       await loadAllData(updated);
@@ -137,12 +153,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoadState('loading');
       try {
         const access = await verifyGitHubAccessSimple(cfg.repo, cfg.token);
+        if (!access.canRead) throw new Error('Token 无法读取该仓库');
+
         const updated = withVerifiedAccess(cfg, access);
         setSettings(updated);
         await loadAllData(updated);
         setLoadState('ready');
       } catch (err) {
-        setErrorMessage(`Token 已失效: ${(err as Error).message}`);
+        setErrorMessage((err as Error).message);
         setLoadState('error');
       } finally {
         setVerifying(false);
@@ -162,21 +180,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (entry) {
       setRows(entry.rows);
       setLoadState('ready');
+    } else {
+      setRows([]);
+      setSelectedFile(null);
+      setLoadState(localFiles.length ? 'ready' : 'idle');
     }
   }, [selectedFile, localFiles]);
 
   const saveAndVerifySettings = useCallback(
-    async (draft: StoredCredentials): Promise<AppSettings> => {
+    async (draft: StoredCredentials) => {
       const credentials: StoredCredentials = {
         token: draft.token.trim(),
         repo: normalizeRepo(draft.repo),
-        dataPath: draft.dataPath.trim()
+        dataPath: validateDataPath(draft.dataPath)
       };
 
       if (!credentials.repo || !credentials.repo.includes('/')) {
         throw new Error('仓库格式应为 owner/repo');
       }
-      if (!credentials.dataPath) throw new Error('请填写数据路径');
       if (!credentials.token) throw new Error('请填写 GitHub Token');
 
       const access = await verifyGitHubAccessSimple(credentials.repo, credentials.token);
@@ -188,9 +209,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setErrorMessage(null);
       setInfoMessage(null);
       setLoadState('loading');
-      await loadAllData(newSettings);
+
+      const loadResult = await loadAllData(newSettings);
       setLoadState('ready');
-      return newSettings;
+
+      return { settings: newSettings, loadWarnings: loadResult.loadErrors };
     },
     [loadAllData]
   );
@@ -218,47 +241,61 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUploading(true);
       setErrorMessage(null);
 
-      try {
-        const parsed = await Promise.all(fileList.map(parseUploadedFile));
-        const now = new Date().toISOString();
-        const newShas = { ...fileShas };
+      const parsed = await Promise.all(fileList.map(parseUploadedFile));
+      const now = new Date().toISOString();
+      const successes: StoredFileEntry[] = [];
+      const newShas = { ...fileShas };
+      const uploadErrors: string[] = [];
 
-        setSyncing(true);
+      setSyncing(true);
+      try {
         for (let i = 0; i < fileList.length; i++) {
           const file = fileList[i];
-          const sha = await pushSpreadsheetToRepo(
-            settings.token,
-            settings.repo,
-            settings.defaultBranch,
-            settings.dataPath,
-            file,
-            fileShas[file.name]
-          );
-          if (sha) newShas[file.name] = sha;
+          const parsedFile = parsed[i];
+          try {
+            const sha = await pushSpreadsheetToRepo(
+              settings.token,
+              settings.repo,
+              settings.defaultBranch,
+              settings.dataPath,
+              file,
+              newShas[parsedFile.fileName]
+            );
+            if (sha) newShas[parsedFile.fileName] = sha;
+            successes.push({
+              fileName: parsedFile.fileName,
+              title: parsedFile.title,
+              uploadedAt: now,
+              rows: parsedFile.rows
+            });
+          } catch (err) {
+            uploadErrors.push(`${parsedFile.fileName}: ${(err as Error).message}`);
+          }
         }
-        setSyncing(false);
-
-        const newEntries: StoredFileEntry[] = parsed.map((p) => ({
-          fileName: p.fileName,
-          title: p.title,
-          uploadedAt: now,
-          rows: p.rows
-        }));
-
-        const mergedMap = new Map(localFiles.map((f) => [f.fileName, f]));
-        for (const entry of newEntries) {
-          mergedMap.set(entry.fileName, entry);
-        }
-        const merged = Array.from(mergedMap.values());
-        setLocalFiles(merged);
-        setFileShas(newShas);
-        setInfoMessage(null);
-
-        const last = newEntries[newEntries.length - 1];
-        setSelectedFile(entryToMeta(last));
       } finally {
-        setUploading(false);
         setSyncing(false);
+        setUploading(false);
+      }
+
+      if (!successes.length) {
+        throw new Error(uploadErrors.join('；'));
+      }
+
+      const mergedMap = new Map(localFiles.map((f) => [f.fileName, f]));
+      for (const entry of successes) {
+        mergedMap.set(entry.fileName, entry);
+      }
+      const merged = Array.from(mergedMap.values());
+      setLocalFiles(merged);
+      setFileShas(newShas);
+
+      const last = successes[successes.length - 1];
+      setSelectedFile(entryToMeta(last));
+
+      if (uploadErrors.length) {
+        setInfoMessage(`部分文件上传失败：${uploadErrors.join('；')}`);
+      } else {
+        setInfoMessage(null);
       }
     },
     [settings, localFiles, fileShas]
@@ -267,7 +304,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextValue = {
     settings,
     files,
-    localFiles,
     selectedFile,
     rows,
     loadState,
@@ -278,7 +314,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     syncing,
     configured,
     setSelectedFile,
-    setErrorMessage,
     saveAndVerifySettings,
     clearAllSettings,
     uploadFiles,

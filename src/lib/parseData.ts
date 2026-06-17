@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { normalizeHeaderKey, stripBom } from './encoding';
+import { assertFileSize, limitRows, validateFileName } from './validation';
 
 export type ParsedFile = {
   fileName: string;
@@ -24,6 +25,7 @@ function normalizeRows(rows: Record<string, unknown>[]): Record<string, unknown>
 }
 
 export function parseCsvText(text: string, fileName: string): ParsedFile {
+  const safeName = validateFileName(fileName);
   const cleaned = stripBom(text);
   const parsed = Papa.parse<Record<string, unknown>>(cleaned, {
     header: true,
@@ -35,17 +37,22 @@ export function parseCsvText(text: string, fileName: string): ParsedFile {
     throw new Error(`CSV 解析错误: ${parsed.errors[0].message}`);
   }
 
+  const rows = limitRows(normalizeRows(parsed.data), safeName);
+
   return {
-    fileName,
-    title: titleFromFileName(fileName),
-    rows: normalizeRows(parsed.data)
+    fileName: safeName,
+    title: titleFromFileName(safeName),
+    rows
   };
 }
 
-export function parseXlsxBuffer(buffer: ArrayBuffer, fileName: string): ParsedFile {
+export function parseXlsxBuffer(buffer: ArrayBuffer, fileName: string): ParsedFile | null {
+  const safeName = validateFileName(fileName);
+  assertFileSize(buffer.byteLength, safeName);
+
   const workbook = XLSX.read(buffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
-  if (!sheetName) throw new Error('XLSX 文件中没有工作表');
+  if (!sheetName) return null;
 
   const sheet = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
@@ -53,32 +60,39 @@ export function parseXlsxBuffer(buffer: ArrayBuffer, fileName: string): ParsedFi
     raw: false
   });
 
-  if (!rows.length) throw new Error('XLSX 工作表为空');
+  if (!rows.length) return null;
+
+  const limited = limitRows(normalizeRows(rows), safeName);
 
   return {
-    fileName,
-    title: titleFromFileName(fileName),
-    rows: normalizeRows(rows)
+    fileName: safeName,
+    title: titleFromFileName(safeName),
+    rows: limited
   };
 }
 
 export async function parseUploadedFile(file: File): Promise<ParsedFile> {
+  assertFileSize(file.size, file.name);
   const name = file.name.toLowerCase();
 
   if (name.endsWith('.csv')) {
-    const text = await file.text();
-    return parseCsvText(text, file.name);
+    return parseCsvText(await file.text(), file.name);
   }
 
   if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
-    const buffer = await file.arrayBuffer();
-    return parseXlsxBuffer(buffer, file.name);
+    const parsed = parseXlsxBuffer(await file.arrayBuffer(), file.name);
+    if (!parsed) throw new Error('XLSX 工作表为空');
+    return parsed;
   }
 
   throw new Error('仅支持 CSV、XLSX、XLS 格式');
 }
 
 export function isSupportedFile(file: File): boolean {
-  const name = file.name.toLowerCase();
-  return name.endsWith('.csv') || name.endsWith('.xlsx') || name.endsWith('.xls');
+  try {
+    validateFileName(file.name);
+    return true;
+  } catch {
+    return false;
+  }
 }

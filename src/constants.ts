@@ -17,8 +17,3 @@ export function normalizeRepo(repo: string): string {
 export function repoUrl(repo: string): string {
   return `https://github.com/${normalizeRepo(repo)}`;
 }
-
-export function repoFilePath(dataPath: string, fileName: string): string {
-  const dir = dataPath.trim().replace(/^\/+/, '').replace(/\/+$/, '') || 'data';
-  return `${dir}/${fileName}`;
-}

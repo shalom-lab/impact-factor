@@ -1,5 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import { decodeBase64ToBuffer, decodeBase64Utf8 } from './encoding';
+import { assertFileSize, repoFilePath, validateDataPath, validateFileName } from './validation';
 
 export async function verifyGitHubAccessSimple(
   repo: string,
@@ -65,12 +66,8 @@ export async function verifyGitHubAccessSimple(
   }
 }
 
-export function createOctokit(token: string) {
+function createOctokit(token: string) {
   return new Octokit({ auth: token });
-}
-
-function normalizeDir(dataPath: string): string {
-  return dataPath.trim().replace(/^\/+/, '').replace(/\/+$/, '') || 'data';
 }
 
 function encodeBufferToBase64(buffer: ArrayBuffer): string {
@@ -100,7 +97,7 @@ export async function listRepoSpreadsheets(
   dataPath: string
 ): Promise<RepoSpreadsheetMeta[]> {
   const [owner, repoName] = repo.split('/');
-  const dir = normalizeDir(dataPath);
+  const dir = validateDataPath(dataPath);
   const octokit = createOctokit(token);
 
   try {
@@ -138,7 +135,7 @@ export async function fetchRepoSpreadsheetContent(
   repo: string,
   branch: string,
   filePath: string
-): Promise<{ fileName: string; text?: string; buffer?: ArrayBuffer }> {
+): Promise<{ fileName: string; text?: string; buffer?: ArrayBuffer; size: number }> {
   const [owner, repoName] = repo.split('/');
   const octokit = createOctokit(token);
   const fileName = filePath.split('/').pop() ?? filePath;
@@ -154,12 +151,41 @@ export async function fetchRepoSpreadsheetContent(
     throw new Error(`无法读取文件: ${filePath}`);
   }
 
+  const size = data.size ?? 0;
+  assertFileSize(size, fileName);
+
   const lower = fileName.toLowerCase();
   if (lower.endsWith('.csv')) {
-    return { fileName, text: decodeBase64Utf8(data.content) };
+    return { fileName, text: decodeBase64Utf8(data.content), size };
   }
 
-  return { fileName, buffer: decodeBase64ToBuffer(data.content) };
+  return { fileName, buffer: decodeBase64ToBuffer(data.content), size };
+}
+
+async function fetchFileSha(
+  token: string,
+  repo: string,
+  branch: string,
+  path: string
+): Promise<string | undefined> {
+  const [owner, repoName] = repo.split('/');
+  const octokit = createOctokit(token);
+  try {
+    const { data } = await octokit.rest.repos.getContent({
+      owner,
+      repo: repoName,
+      path,
+      ref: branch
+    });
+    if (!Array.isArray(data) && data.type === 'file' && 'sha' in data) {
+      return data.sha;
+    }
+  } catch (err: unknown) {
+    const error = err as { status?: number };
+    if (error?.status === 404) return undefined;
+    throw err;
+  }
+  return undefined;
 }
 
 export async function pushSpreadsheetToRepo(
@@ -171,23 +197,38 @@ export async function pushSpreadsheetToRepo(
   sha?: string
 ): Promise<string> {
   const [owner, repoName] = repo.split('/');
-  const path = `${normalizeDir(dataPath)}/${file.name}`;
+  const safeName = validateFileName(file.name);
+  const path = repoFilePath(dataPath, safeName);
   const octokit = createOctokit(token);
-  const lower = file.name.toLowerCase();
 
+  assertFileSize(file.size, safeName);
+
+  const lower = safeName.toLowerCase();
   const content = lower.endsWith('.csv')
     ? encodeTextToBase64(await file.text())
     : encodeBufferToBase64(await file.arrayBuffer());
 
-  const { data } = await octokit.rest.repos.createOrUpdateFileContents({
-    owner,
-    repo: repoName,
-    path,
-    message: `Upload ${file.name} via SheetView`,
-    content,
-    branch,
-    ...(sha ? { sha } : {})
-  });
+  async function commit(currentSha?: string) {
+    const { data } = await octokit.rest.repos.createOrUpdateFileContents({
+      owner,
+      repo: repoName,
+      path,
+      message: `Upload ${safeName} via SheetView`,
+      content,
+      branch,
+      ...(currentSha ? { sha: currentSha } : {})
+    });
+    return data.content?.sha ?? '';
+  }
 
-  return data.content?.sha ?? '';
+  try {
+    return await commit(sha);
+  } catch (err: unknown) {
+    const error = err as { status?: number };
+    if (error?.status === 409) {
+      const freshSha = await fetchFileSha(token, repo, branch, path);
+      return commit(freshSha);
+    }
+    throw err;
+  }
 }

@@ -51,7 +51,16 @@ export function UploadPage() {
           <span className="format-tag">XLS</span>
         </div>
 
-        <FileUpload onUpload={handleUpload} uploading={busy} compact />
+        {!settings.canWrite ? (
+          <div className="alert alert--info">当前 Token 为只读，无法上传文件。</div>
+        ) : null}
+
+        <FileUpload
+          onUpload={handleUpload}
+          uploading={busy}
+          disabled={!settings.canWrite}
+          compact
+        />
 
         {busy ? (
           <p className="upload-card__sync">

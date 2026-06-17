@@ -1,5 +1,6 @@
 import { DEFAULT_DATA_PATH, DEFAULT_REPO, normalizeRepo, STORAGE_KEYS, STORAGE_PREFIX } from '../constants';
 import type { AppSettings, StoredCredentials } from '../types';
+import { validateDataPath } from './validation';
 
 const LEGACY_KEYS = {
   settings: 'impact-factor:settings',
@@ -84,7 +85,7 @@ export function saveCredentials(credentials: StoredCredentials): void {
 function writeCredentials(credentials: StoredCredentials): void {
   localStorage.setItem(STORAGE_KEYS.token, credentials.token.trim());
   localStorage.setItem(STORAGE_KEYS.repo, normalizeRepo(credentials.repo) || DEFAULT_REPO);
-  localStorage.setItem(STORAGE_KEYS.dataPath, credentials.dataPath.trim() || DEFAULT_DATA_PATH);
+  localStorage.setItem(STORAGE_KEYS.dataPath, validateDataPath(credentials.dataPath));
 }
 
 export function clearSettings(): void {
@@ -94,9 +95,4 @@ export function clearSettings(): void {
   localStorage.removeItem(LEGACY_KEYS.owner);
   localStorage.removeItem(LEGACY_KEYS.settings);
   cleanupLegacyStorage();
-}
-
-export function isConfigured(): boolean {
-  const c = readCredentials();
-  return Boolean(c.token?.trim() && c.repo?.trim());
 }

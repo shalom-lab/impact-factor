@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { DEFAULT_DATA_PATH, DEFAULT_REPO, STORAGE_PREFIX } from '../constants';
+import { useEffect, useState } from 'react';
+import { DEFAULT_DATA_PATH, DEFAULT_REPO } from '../constants';
 import { useApp } from '../context/AppContext';
 
 export function SettingsPage() {
@@ -10,18 +10,29 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const isActive = Boolean(settings.token?.trim());
+
+  useEffect(() => {
+    setRepo(settings.repo || DEFAULT_REPO);
+    setDataPath(settings.dataPath || DEFAULT_DATA_PATH);
+    setToken(settings.token);
+  }, [settings.repo, settings.dataPath, settings.token]);
 
   async function handleSave() {
     setError(null);
     setSuccess(null);
+    setWarning(null);
     setSaving(true);
     try {
-      const saved = await saveAndVerifySettings({ repo, dataPath, token });
+      const { settings: saved, loadWarnings } = await saveAndVerifySettings({ repo, dataPath, token });
       setSuccess(
         `保存成功 · 分支 ${saved.defaultBranch} · ${saved.canWrite ? '可读写' : '只读'}`
       );
+      if (loadWarnings.length) {
+        setWarning(`部分数据文件未加载：${loadWarnings.join('；')}`);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -36,6 +47,7 @@ export function SettingsPage() {
     setToken('');
     setError(null);
     setSuccess('已清除配置');
+    setWarning(null);
   }
 
   return (
@@ -101,12 +113,8 @@ export function SettingsPage() {
           </label>
         </div>
 
-        <p className="settings-card__keys muted">
-          存储键：<code>{STORAGE_PREFIX}-token</code> · <code>{STORAGE_PREFIX}-repo</code> ·{' '}
-          <code>{STORAGE_PREFIX}-data-path</code>
-        </p>
-
         {error ? <div className="alert alert--error">{error}</div> : null}
+        {warning ? <div className="alert alert--info">{warning}</div> : null}
         {success ? <div className="alert alert--success">{success}</div> : null}
 
         <div className="settings-card__foot">

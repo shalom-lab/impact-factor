@@ -1,7 +1,6 @@
 export type CsvFileMeta = {
   fileName: string;
   title: string;
-  relativePath: string;
   size: number;
   lastModified: string;
 };
