@@ -1,10 +1,11 @@
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { normalizeHeaderKey, stripBom } from './encoding';
-import { assertFileSize, limitRows, validateFileName } from './validation';
+import { assertFileSize, hasSpreadsheetExtension, limitRows, sanitizeFileName, validateFileName } from './validation';
 
 export type ParsedFile = {
   fileName: string;
+  originalFileName?: string;
   title: string;
   rows: Record<string, unknown>[];
 };
@@ -72,27 +73,28 @@ export function parseXlsxBuffer(buffer: ArrayBuffer, fileName: string): ParsedFi
 }
 
 export async function parseUploadedFile(file: File): Promise<ParsedFile> {
-  assertFileSize(file.size, file.name);
-  const name = file.name.toLowerCase();
+  const safeName = sanitizeFileName(file.name);
+  assertFileSize(file.size, safeName);
+  const lower = safeName.toLowerCase();
 
-  if (name.endsWith('.csv')) {
-    return parseCsvText(await file.text(), file.name);
+  let parsed: ParsedFile;
+  if (lower.endsWith('.csv')) {
+    parsed = parseCsvText(await file.text(), safeName);
+  } else if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+    const result = parseXlsxBuffer(await file.arrayBuffer(), safeName);
+    if (!result) throw new Error('XLSX 工作表为空');
+    parsed = result;
+  } else {
+    throw new Error('仅支持 CSV、XLSX、XLS 格式');
   }
 
-  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
-    const parsed = parseXlsxBuffer(await file.arrayBuffer(), file.name);
-    if (!parsed) throw new Error('XLSX 工作表为空');
-    return parsed;
+  const original = file.name.replace(/^.*[/\\]/, '').trim();
+  if (original !== safeName) {
+    parsed.originalFileName = original;
   }
-
-  throw new Error('仅支持 CSV、XLSX、XLS 格式');
+  return parsed;
 }
 
 export function isSupportedFile(file: File): boolean {
-  try {
-    validateFileName(file.name);
-    return true;
-  } catch {
-    return false;
-  }
+  return hasSpreadsheetExtension(file.name);
 }

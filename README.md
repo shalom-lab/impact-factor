@@ -17,7 +17,6 @@ localStorage.setItem('gh-sheetview-data-path', 'data');
 location.reload();
 ```
 
-`canRead` / `canWrite` / `defaultBranch` 不存储，启动时 API 自动验证。
 
 ### 数据流
 

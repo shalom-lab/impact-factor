@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import { decodeBase64ToBuffer, decodeBase64Utf8 } from './encoding';
-import { assertFileSize, repoFilePath, validateDataPath, validateFileName } from './validation';
+import { assertFileSize, repoFilePath, sanitizeFileName, validateDataPath, validateFileName } from './validation';
 
 export async function verifyGitHubAccessSimple(
   repo: string,
@@ -197,7 +197,7 @@ export async function pushSpreadsheetToRepo(
   sha?: string
 ): Promise<string> {
   const [owner, repoName] = repo.split('/');
-  const safeName = validateFileName(file.name);
+  const safeName = sanitizeFileName(file.name);
   const path = repoFilePath(dataPath, safeName);
   const octokit = createOctokit(token);
 

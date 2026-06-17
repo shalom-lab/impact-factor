@@ -246,12 +246,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const successes: StoredFileEntry[] = [];
       const newShas = { ...fileShas };
       const uploadErrors: string[] = [];
+      const renames: string[] = [];
 
       setSyncing(true);
       try {
         for (let i = 0; i < fileList.length; i++) {
           const file = fileList[i];
           const parsedFile = parsed[i];
+          if (parsedFile.originalFileName) {
+            renames.push(`${parsedFile.originalFileName} → ${parsedFile.fileName}`);
+          }
           try {
             const sha = await pushSpreadsheetToRepo(
               settings.token,
@@ -292,11 +296,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const last = successes[successes.length - 1];
       setSelectedFile(entryToMeta(last));
 
-      if (uploadErrors.length) {
-        setInfoMessage(`部分文件上传失败：${uploadErrors.join('；')}`);
-      } else {
-        setInfoMessage(null);
-      }
+      const parts: string[] = [];
+      if (renames.length) parts.push(`文件名已自动清理：${renames.join('；')}`);
+      if (uploadErrors.length) parts.push(`部分文件上传失败：${uploadErrors.join('；')}`);
+      setInfoMessage(parts.length ? parts.join(' ') : null);
     },
     [settings, localFiles, fileShas]
   );
