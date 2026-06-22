@@ -19,6 +19,12 @@ export function blobFromSpreadsheetContent(
   content: { text?: string; buffer?: ArrayBuffer }
 ): Blob {
   if (content.text !== undefined) {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith('.csv')) {
+      const bom = '\uFEFF';
+      const text = content.text.startsWith(bom) ? content.text : bom + content.text;
+      return new Blob([text], { type: mimeTypeForFileName(fileName) });
+    }
     return new Blob([content.text], { type: mimeTypeForFileName(fileName) });
   }
   if (content.buffer) {

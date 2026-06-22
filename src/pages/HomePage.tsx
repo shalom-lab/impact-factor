@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { FileList } from '../components/FileList';
 import { DataTable } from '../components/DataTable';
 import { useApp } from '../context/AppContext';
@@ -22,6 +23,7 @@ export function HomePage() {
     fileAction
   } = useApp();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   async function handleDownload() {
     if (!selectedFile) return;
@@ -33,14 +35,17 @@ export function HomePage() {
     }
   }
 
-  async function handleDelete() {
+  function handleDeleteClick() {
     if (!selectedFile) return;
-    const name = selectedFile.fileName;
-    if (!window.confirm(`确定从仓库删除「${name}」吗？此操作不可撤销。`)) return;
+    setDeleteTarget(selectedFile.fileName);
+  }
 
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
     setActionError(null);
     try {
-      await deleteFile(name);
+      await deleteFile(deleteTarget);
+      setDeleteTarget(null);
     } catch (err) {
       setActionError((err as Error).message);
     }
@@ -96,10 +101,10 @@ export function HomePage() {
                   <button
                     type="button"
                     className="btn btn--ghost btn--sm btn--danger"
-                    onClick={handleDelete}
+                    onClick={handleDeleteClick}
                     disabled={busy}
                   >
-                    {fileAction === 'delete' ? '删除中…' : '删除'}
+                    删除
                   </button>
                 ) : null}
               </div>
@@ -126,8 +131,22 @@ export function HomePage() {
           </div>
         ) : null}
 
-        <DataTable rows={rows} />
+        <DataTable key={selectedFile?.fileName ?? 'none'} rows={rows} />
       </section>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="确认删除"
+        message={`确定从仓库删除「${deleteTarget ?? ''}」吗？此操作不可撤销，文件将从 GitHub 仓库中永久移除。`}
+        confirmLabel="删除"
+        cancelLabel="取消"
+        variant="danger"
+        loading={fileAction === 'delete'}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          if (fileAction !== 'delete') setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }
