@@ -66,7 +66,7 @@ export async function loadDataFromGitHub(cfg: AppSettings): Promise<LoadDataResu
         fileName: parsed.fileName,
         title: parsed.title,
         uploadedAt: now,
-        rows: parsed.rows
+        sheets: parsed.sheets
       });
     } catch (err) {
       loadErrors.push(`${meta.fileName}: ${(err as Error).message}`);

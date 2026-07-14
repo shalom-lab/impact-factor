@@ -9,9 +9,10 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "@handsontable/react-wrapper": "^18.0.0",
         "@octokit/rest": "^22.0.1",
-        "@tanstack/react-table": "^8.15.2",
         "clsx": "^2.1.1",
+        "handsontable": "^18.0.0",
         "papaparse": "^5.4.1",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",

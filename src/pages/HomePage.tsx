@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { FileList } from '../components/FileList';
-import { DataTable } from '../components/DataTable';
+import { SheetViewer } from '../components/SheetViewer';
 import { useApp } from '../context/AppContext';
 
 export function HomePage() {
@@ -10,7 +10,7 @@ export function HomePage() {
     files,
     selectedFile,
     setSelectedFile,
-    rows,
+    sheets,
     loadState,
     errorMessage,
     infoMessage,
@@ -35,9 +35,8 @@ export function HomePage() {
     }
   }
 
-  function handleDeleteClick() {
-    if (!selectedFile) return;
-    setDeleteTarget(selectedFile.fileName);
+  function requestDelete(fileName: string) {
+    setDeleteTarget(fileName);
   }
 
   async function handleDeleteConfirm() {
@@ -77,7 +76,14 @@ export function HomePage() {
             ↻
           </button>
         </div>
-        <FileList files={files} selectedFile={selectedFile} onSelect={setSelectedFile} />
+        <FileList
+          files={files}
+          selectedFile={selectedFile}
+          onSelect={setSelectedFile}
+          canDelete={settings.canWrite}
+          deleteDisabled={busy}
+          onDelete={(file) => requestDelete(file.fileName)}
+        />
       </aside>
 
       <section className="home-main">
@@ -101,7 +107,7 @@ export function HomePage() {
                   <button
                     type="button"
                     className="btn btn--ghost btn--sm btn--danger"
-                    onClick={handleDeleteClick}
+                    onClick={() => requestDelete(selectedFile.fileName)}
                     disabled={busy}
                   >
                     删除
@@ -112,7 +118,8 @@ export function HomePage() {
             <div className="file-meta__stats">
               <span>{new Date(selectedFile.lastModified).toLocaleString()}</span>
               <span>{(selectedFile.size / 1024).toFixed(1)} KB</span>
-              <span>{rows.length} 行</span>
+              <span>{selectedFile.sheetCount} 个工作表</span>
+              <span>{selectedFile.rowCount.toLocaleString()} 行</span>
             </div>
           </div>
         ) : null}
@@ -131,7 +138,11 @@ export function HomePage() {
           </div>
         ) : null}
 
-        <DataTable key={selectedFile?.fileName ?? 'none'} rows={rows} />
+        {sheets.length ? (
+          <SheetViewer key={selectedFile?.fileName ?? 'none'} fileKey={selectedFile?.fileName ?? 'none'} sheets={sheets} />
+        ) : (
+          <p className="empty-hint">选择左侧文件，或前往上传页面添加数据。</p>
+        )}
       </section>
 
       <ConfirmDialog

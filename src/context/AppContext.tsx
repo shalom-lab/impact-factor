@@ -17,10 +17,10 @@ import {
   verifyGitHubAccessSimple
 } from '../lib/github';
 import { loadDataFromGitHub } from '../lib/loadData';
-import { parseUploadedFile } from '../lib/parseData';
+import { parseUploadedFile, totalRows } from '../lib/parseData';
 import { clearSettings, loadSettings, saveCredentials } from '../lib/storage';
 import { repoFilePath, validateDataPath } from '../lib/validation';
-import type { AppSettings, CsvFileMeta, StoredCredentials, StoredFileEntry } from '../types';
+import type { AppSettings, CsvFileMeta, SheetData, StoredCredentials, StoredFileEntry } from '../types';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -28,7 +28,7 @@ type AppContextValue = {
   settings: AppSettings;
   files: CsvFileMeta[];
   selectedFile: CsvFileMeta | null;
-  rows: Record<string, unknown>[];
+  sheets: SheetData[];
   loadState: LoadState;
   errorMessage: string | null;
   infoMessage: string | null;
@@ -52,12 +52,14 @@ type AppContextValue = {
 const AppContext = createContext<AppContextValue | null>(null);
 
 function entryToMeta(entry: StoredFileEntry): CsvFileMeta {
-  const size = new Blob([JSON.stringify(entry.rows)]).size;
+  const size = new Blob([JSON.stringify(entry.sheets)]).size;
   return {
     fileName: entry.fileName,
     title: entry.title,
     size,
-    lastModified: entry.uploadedAt
+    lastModified: entry.uploadedAt,
+    sheetCount: entry.sheets.length,
+    rowCount: totalRows(entry.sheets)
   };
 }
 
@@ -90,7 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [localFiles, setLocalFiles] = useState<StoredFileEntry[]>([]);
   const [fileShas, setFileShas] = useState<Record<string, string>>({});
   const [selectedFile, setSelectedFile] = useState<CsvFileMeta | null>(null);
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [sheets, setSheets] = useState<SheetData[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -181,17 +183,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!selectedFile) {
-      setRows([]);
+      setSheets([]);
       setLoadState(localFiles.length ? 'ready' : 'idle');
       return;
     }
 
     const entry = localFiles.find((f) => f.fileName === selectedFile.fileName);
     if (entry) {
-      setRows(entry.rows);
+      setSheets(entry.sheets);
       setLoadState('ready');
     } else {
-      setRows([]);
+      setSheets([]);
       setSelectedFile(null);
       setLoadState(localFiles.length ? 'ready' : 'idle');
     }
@@ -234,7 +236,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLocalFiles([]);
     setFileShas({});
     setSelectedFile(null);
-    setRows([]);
+    setSheets([]);
     setErrorMessage(null);
     setInfoMessage(null);
   }, []);
@@ -280,7 +282,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               fileName: parsedFile.fileName,
               title: parsedFile.title,
               uploadedAt: now,
-              rows: parsedFile.rows
+              sheets: parsedFile.sheets
             });
           } catch (err) {
             uploadErrors.push(`${parsedFile.fileName}: ${(err as Error).message}`);
@@ -379,7 +381,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     settings,
     files,
     selectedFile,
-    rows,
+    sheets,
     loadState,
     errorMessage,
     infoMessage,

@@ -4,6 +4,9 @@ export const MAX_FILE_BYTES = 30 * 1024 * 1024;
 /** 单表最大行数 */
 export const MAX_ROWS = 100_000;
 
+/** 单文件最大工作表数 */
+export const MAX_SHEETS = 50;
+
 const DATA_PATH_SEGMENT = /^[a-zA-Z0-9._-]+$/;
 const ALLOWED_EXT = /\.(csv|xlsx|xls)$/i;
 
@@ -81,6 +84,12 @@ export function limitRows<T>(rows: T[], fileName: string): T[] {
     throw new Error(`${fileName} 超过 ${MAX_ROWS.toLocaleString()} 行限制`);
   }
   return rows;
+}
+
+export function assertSheetCount(count: number, fileName: string): void {
+  if (count > MAX_SHEETS) {
+    throw new Error(`${fileName} 超过 ${MAX_SHEETS} 个工作表限制`);
+  }
 }
 
 export function repoFilePath(dataPath: string, fileName: string): string {

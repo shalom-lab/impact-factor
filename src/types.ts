@@ -3,6 +3,8 @@ export type CsvFileMeta = {
   title: string;
   size: number;
   lastModified: string;
+  sheetCount: number;
+  rowCount: number;
 };
 
 /** 仅写入 localStorage 的凭证字段 */
@@ -19,11 +21,20 @@ export type AppSettings = StoredCredentials & {
   canWrite: boolean;
 };
 
+export type CellValue = string | number | boolean | null;
+
+/** 单个工作表（Handsontable 数据源） */
+export type SheetData = {
+  name: string;
+  colHeaders: string[];
+  data: CellValue[][];
+};
+
 export type StoredFileEntry = {
   fileName: string;
   title: string;
   uploadedAt: string;
-  rows: Record<string, unknown>[];
+  sheets: SheetData[];
 };
 
 export type FileUploadProps = {
