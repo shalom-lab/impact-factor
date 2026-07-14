@@ -941,12 +941,13 @@
 }
 
 .btn--danger-solid {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
   color: #fff;
+  box-shadow: 0 6px 14px rgba(225, 29, 72, 0.22);
 }
 
 .btn--danger-solid:hover:not(:disabled) {
-  background: linear-gradient(135deg, #b91c1c, #991b1b);
+  background: linear-gradient(135deg, #e11d48, #be123c);
 }
 
 .btn-icon {
@@ -1064,56 +1065,157 @@
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(6px);
   animation: dialog-fade-in 0.18s ease;
 }
 
 .dialog {
-  width: min(420px, 100%);
+  position: relative;
+  width: min(400px, 100%);
   background: #fff;
-  border-radius: 14px;
-  padding: 24px;
+  border-radius: 16px;
+  padding: 22px 22px 18px;
+  overflow: hidden;
   box-shadow:
-    0 20px 50px rgba(15, 23, 42, 0.18),
-    0 0 0 1px rgba(15, 23, 42, 0.06);
-  animation: dialog-slide-in 0.22s ease;
+    0 24px 64px rgba(15, 23, 42, 0.22),
+    0 0 0 1px rgba(15, 23, 42, 0.05);
+  animation: dialog-slide-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dialog--danger .dialog__icon {
-  background: #fef2f2;
-  color: #dc2626;
+.dialog__accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+}
+
+.dialog--danger .dialog__accent {
+  background: linear-gradient(90deg, #f43f5e, #ef4444);
+}
+
+.dialog__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.dialog__close:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.dialog__close:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dialog__header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding-right: 24px;
+  margin-bottom: 16px;
 }
 
 .dialog__icon {
-  width: 44px;
-  height: 44px;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   border-radius: 12px;
   background: #eff6ff;
   color: #2563eb;
-  margin-bottom: 14px;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+.dialog--danger .dialog__icon {
+  background: linear-gradient(145deg, #fff1f2, #ffe4e6);
+  color: #e11d48;
+  box-shadow: inset 0 0 0 1px rgba(225, 29, 72, 0.12);
+}
+
+.dialog__heading {
+  min-width: 0;
+  padding-top: 1px;
 }
 
 .dialog__title {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   font-size: 1.05rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: #0f172a;
 }
 
 .dialog__message {
-  margin: 0 0 20px;
-  font-size: 0.88rem;
-  line-height: 1.55;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
   color: #64748b;
 }
 
-.dialog__actions {
+.dialog__target {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 10px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.dialog--danger .dialog__target {
+  background: #fff7f7;
+  border-color: #fecdd3;
+}
+
+.dialog__target-icon {
+  display: grid;
+  place-items: center;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.dialog--danger .dialog__target-icon {
+  color: #fb7185;
+}
+
+.dialog__target-name {
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #334155;
+  word-break: break-all;
+  line-height: 1.35;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.dialog__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dialog__btn {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 9px;
+  font-size: 0.86rem;
 }
 
 @keyframes dialog-fade-in {
@@ -1128,7 +1230,7 @@
 @keyframes dialog-slide-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.98);
+    transform: translateY(12px) scale(0.97);
   }
   to {
     opacity: 1;

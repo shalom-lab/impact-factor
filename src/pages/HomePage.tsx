@@ -162,9 +162,10 @@ export function HomePage() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="确认删除"
-        message={`确定从仓库删除「${deleteTarget ?? ''}」吗？此操作不可撤销，文件将从 GitHub 仓库中永久移除。`}
-        confirmLabel="删除"
+        title="删除文件"
+        message="此操作将从 GitHub 仓库永久移除该文件，且不可撤销。"
+        highlight={deleteTarget}
+        confirmLabel="确认删除"
         cancelLabel="取消"
         variant="danger"
         loading={fileAction === 'delete'}
