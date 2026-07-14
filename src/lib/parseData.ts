@@ -4,9 +4,9 @@ import { stripBom } from './encoding';
 import type { CellValue, SheetData } from '../types';
 import {
   assertFileSize,
-  assertSheetCount,
   hasSpreadsheetExtension,
   limitRows,
+  MAX_SHEETS,
   sanitizeFileName,
   validateFileName
 } from './validation';
@@ -96,24 +96,30 @@ export function parseXlsxBuffer(buffer: ArrayBuffer, fileName: string): ParsedFi
   const safeName = validateFileName(fileName);
   assertFileSize(buffer.byteLength, safeName);
 
-  const workbook = XLSX.read(buffer, { type: 'array' });
+  // SheetJS 的 type:'array' 需要 Uint8Array；直接传 ArrayBuffer 可能导致空工作簿
+  const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
   if (!workbook.SheetNames.length) return null;
-
-  assertSheetCount(workbook.SheetNames.length, safeName);
 
   const sheets: SheetData[] = [];
   for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    if (!sheet) continue;
+    if (sheets.length >= MAX_SHEETS) break;
 
-    const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-      header: 1,
-      defval: '',
-      raw: false
-    });
+    try {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet || !sheet['!ref']) continue;
 
-    const grid = gridFromAoA(aoa, safeName, sheetName);
-    if (grid) sheets.push(grid);
+      const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+        header: 1,
+        defval: '',
+        raw: false,
+        blankrows: false
+      });
+
+      const grid = gridFromAoA(aoa, safeName, sheetName);
+      if (grid) sheets.push(grid);
+    } catch {
+      // 跳过单个损坏工作表，继续解析其余 sheet
+    }
   }
 
   if (!sheets.length) return null;

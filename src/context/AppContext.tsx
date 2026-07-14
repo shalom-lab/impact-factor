@@ -46,6 +46,8 @@ type AppContextValue = {
   refreshData: () => Promise<void>;
   downloadFile: (fileName: string) => Promise<void>;
   deleteFile: (fileName: string) => Promise<void>;
+  dismissError: () => void;
+  dismissInfo: () => void;
   fileAction: 'download' | 'delete' | null;
 };
 
@@ -396,6 +398,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshData,
     downloadFile,
     deleteFile,
+    dismissError: () => setErrorMessage(null),
+    dismissInfo: () => setInfoMessage(null),
     fileAction
   };
 

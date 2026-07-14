@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DismissibleAlert } from '../components/DismissibleAlert';
 import { FileList } from '../components/FileList';
 import { SheetViewer } from '../components/SheetViewer';
 import { useApp } from '../context/AppContext';
@@ -20,6 +21,8 @@ export function HomePage() {
     settings,
     downloadFile,
     deleteFile,
+    dismissError,
+    dismissInfo,
     fileAction
   } = useApp();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -124,9 +127,21 @@ export function HomePage() {
           </div>
         ) : null}
 
-        {actionError ? <div className="alert alert--error">{actionError}</div> : null}
-        {errorMessage ? <div className="alert alert--error">{errorMessage}</div> : null}
-        {infoMessage ? <div className="alert alert--info">{infoMessage}</div> : null}
+        {actionError ? (
+          <DismissibleAlert variant="error" onDismiss={() => setActionError(null)}>
+            {actionError}
+          </DismissibleAlert>
+        ) : null}
+        {errorMessage ? (
+          <DismissibleAlert variant="error" onDismiss={dismissError}>
+            {errorMessage}
+          </DismissibleAlert>
+        ) : null}
+        {infoMessage ? (
+          <DismissibleAlert variant="info" onDismiss={dismissInfo}>
+            {infoMessage}
+          </DismissibleAlert>
+        ) : null}
         {loadState === 'loading' || verifying ? (
           <div className="alert alert--info">数据加载中…</div>
         ) : null}

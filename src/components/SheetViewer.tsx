@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import type { SheetData } from '../types';
 import { HotSheet } from './HotSheet';
@@ -11,10 +11,12 @@ type SheetViewerProps = {
 export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [mounted, setMounted] = useState<Set<number>>(() => new Set([0]));
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setActiveIndex(0);
     setMounted(new Set([0]));
+    setSearchQuery('');
   }, [fileKey]);
 
   useEffect(() => {
@@ -29,6 +31,18 @@ export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
       return next;
     });
   }, [sheets.length]);
+
+  const safeIndex = sheets.length ? Math.min(activeIndex, sheets.length - 1) : 0;
+  const active = sheets[safeIndex];
+
+  const matchCount = useMemo(() => {
+    if (!active) return 0;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return active.data.length;
+    return active.data.filter((row) =>
+      row.some((cell) => cell !== null && cell !== undefined && String(cell).toLowerCase().includes(q))
+    ).length;
+  }, [active, searchQuery]);
 
   if (!sheets.length) {
     return <p className="empty-hint">选择左侧文件，或前往上传页面添加数据。</p>;
@@ -45,11 +59,26 @@ export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
   }
 
   const showTabs = sheets.length > 1;
-  const safeIndex = Math.min(activeIndex, sheets.length - 1);
-  const active = sheets[safeIndex];
+  const hasQuery = Boolean(searchQuery.trim());
 
   return (
     <div className="sheet-viewer">
+      <div className="sheet-viewer__toolbar">
+        <input
+          type="search"
+          className="sheet-search"
+          placeholder="搜索当前工作表…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="搜索当前工作表"
+        />
+        <span className="sheet-search__meta">
+          {hasQuery
+            ? `匹配 ${matchCount.toLocaleString()} / ${active.data.length.toLocaleString()} 行`
+            : `${active.data.length.toLocaleString()} 行`}
+        </span>
+      </div>
+
       {showTabs ? (
         <div className="sheet-tabs" role="tablist" aria-label="工作表">
           {sheets.map((sheet, index) => (
@@ -76,6 +105,7 @@ export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
               key={`${fileKey}-${sheet.name}-${index}`}
               sheet={sheet}
               active={index === safeIndex}
+              searchQuery={searchQuery}
             />
           ) : null
         )}
@@ -83,7 +113,8 @@ export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
 
       <div className="sheet-viewer__foot">
         <span>
-          {active.name} · {active.data.length.toLocaleString()} 行 · {active.colHeaders.length} 列
+          {active.name} · {active.colHeaders.length} 列
+          {hasQuery ? ` · 筛选后 ${matchCount.toLocaleString()} 行` : ` · ${active.data.length.toLocaleString()} 行`}
         </span>
         {showTabs ? <span>{sheets.length} 个工作表</span> : null}
       </div>
