@@ -130,6 +130,11 @@ export async function listRepoSpreadsheets(
   }
 }
 
+/**
+ * 读取仓库文件内容。
+ * GitHub Contents API：≤1MB 才在 JSON 里返回 base64 content；
+ * 1–100MB 需用 Git Blob API / raw 媒体类型，否则 content 为空字符串。
+ */
 export async function fetchRepoSpreadsheetContent(
   token: string,
   repo: string,
@@ -147,19 +152,50 @@ export async function fetchRepoSpreadsheetContent(
     ref: branch
   });
 
-  if (Array.isArray(data) || data.type !== 'file' || !('content' in data)) {
+  if (Array.isArray(data) || data.type !== 'file') {
     throw new Error(`无法读取文件: ${filePath}`);
   }
 
   const size = data.size ?? 0;
   assertFileSize(size, fileName);
 
-  const lower = fileName.toLowerCase();
-  if (lower.endsWith('.csv')) {
-    return { fileName, text: decodeBase64Utf8(data.content), size };
+  if (size <= 0) {
+    throw new Error(`文件为空: ${fileName}`);
   }
 
-  return { fileName, buffer: decodeBase64ToBuffer(data.content), size };
+  const hasInlineBase64 =
+    'content' in data &&
+    typeof data.content === 'string' &&
+    data.content.length > 0 &&
+    data.encoding === 'base64';
+
+  let base64: string;
+  if (hasInlineBase64) {
+    base64 = data.content;
+  } else {
+    // >1MB：Contents JSON 的 content 为空，改用 Blob API
+    const blob = await octokit.rest.git.getBlob({
+      owner,
+      repo: repoName,
+      file_sha: data.sha
+    });
+    if (!blob.data.content) {
+      throw new Error(`无法获取大文件内容（${(size / 1024 / 1024).toFixed(1)}MB）: ${fileName}`);
+    }
+    base64 = blob.data.content;
+  }
+
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith('.csv')) {
+    return { fileName, text: decodeBase64Utf8(base64), size };
+  }
+
+  const buffer = decodeBase64ToBuffer(base64);
+  if (!buffer.byteLength) {
+    throw new Error(`文件解码后为空: ${fileName}`);
+  }
+
+  return { fileName, buffer, size };
 }
 
 async function fetchFileSha(

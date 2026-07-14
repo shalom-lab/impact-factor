@@ -56,7 +56,13 @@ export async function loadDataFromGitHub(cfg: AppSettings): Promise<LoadDataResu
           : null;
 
       if (!parsed) {
-        const reason = raw.buffer ? '工作表无数据或无法解析，已跳过' : '无法识别文件格式';
+        const bytes = raw.buffer?.byteLength ?? 0;
+        const reason =
+          bytes === 0
+            ? '文件内容为空（大文件可能未正确拉取）'
+            : raw.buffer
+              ? '工作表无数据或无法解析，已跳过'
+              : '无法识别文件格式';
         loadErrors.push(`${meta.fileName}: ${reason}`);
         continue;
       }

@@ -14,7 +14,8 @@ export function decodeBase64ToBuffer(base64: string): ArrayBuffer {
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return bytes.buffer;
+  // 返回精确长度的副本，避免底层 ArrayBuffer 可能大于有效数据
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
 export function stripBom(text: string): string {
