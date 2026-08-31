@@ -9,6 +9,13 @@ import {
   type ReactNode
 } from 'react';
 import { DEFAULT_DATA_PATH, normalizeRepo } from '../constants';
+import {
+  clearAllDataCache,
+  putCachedFile,
+  readCacheSnapshot,
+  removeCachedFile,
+  type CacheSnapshot
+} from '../lib/dataCache';
 import { blobFromSpreadsheetContent, triggerBrowserDownload } from '../lib/download';
 import {
   deleteRepoSpreadsheet,
@@ -108,12 +115,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const files = useMemo(() => localFiles.map(entryToMeta), [localFiles]);
 
   const applyLoadResult = useCallback(
-    (result: Awaited<ReturnType<typeof loadDataFromGitHub>>, requestId: number) => {
+    (
+      result: Awaited<ReturnType<typeof loadDataFromGitHub>>,
+      requestId: number,
+      opts?: { silent?: boolean }
+    ) => {
       if (requestId !== loadRequestId.current) return;
 
       setLocalFiles(result.files);
       setFileShas(result.fileShas);
       setSelectedFile((prev) => resolveSelection(result.files, prev));
+
+      if (opts?.silent) {
+        // 静默同步：有错误才提示，避免打扰已在看表的用户
+        if (result.loadErrors.length && result.files.length === 0) {
+          setErrorMessage(result.loadErrors.join('；'));
+        } else if (result.loadErrors.length) {
+          setInfoMessage(`部分文件同步失败：${result.loadErrors.join('；')}`);
+        }
+        return;
+      }
 
       if (result.loadErrors.length && result.files.length === 0) {
         setErrorMessage(result.loadErrors.join('；'));
@@ -130,10 +151,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const loadAllData = useCallback(
-    async (cfg: AppSettings) => {
-      const requestId = ++loadRequestId.current;
-      const result = await loadDataFromGitHub(cfg);
-      applyLoadResult(result, requestId);
+    async (
+      cfg: AppSettings,
+      opts?: { cached?: CacheSnapshot | null; silent?: boolean; requestId?: number }
+    ) => {
+      const requestId = opts?.requestId ?? ++loadRequestId.current;
+      const result = await loadDataFromGitHub(cfg, { cached: opts?.cached });
+      if (!opts?.silent || result.changed || result.loadErrors.length) {
+        applyLoadResult(result, requestId, { silent: opts?.silent });
+      }
       return result;
     },
     [applyLoadResult]
@@ -150,7 +176,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const updated = withVerifiedAccess(settings, access);
       setSettings(updated);
-      await loadAllData(updated);
+      const cached = await readCacheSnapshot(updated.repo, updated.dataPath);
+      await loadAllData(updated, { cached });
     } catch (err) {
       setErrorMessage((err as Error).message);
     } finally {
@@ -163,21 +190,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const cfg = loadSettings();
       if (!cfg.token?.trim()) return;
 
+      const requestId = ++loadRequestId.current;
+      let cached: CacheSnapshot | null = null;
+
+      // 1) 先展示 IndexedDB 缓存，避免每次白屏等远端
+      try {
+        cached = await readCacheSnapshot(cfg.repo, cfg.dataPath);
+        if (requestId === loadRequestId.current && cached?.files.length) {
+          setLocalFiles(cached.files);
+          setFileShas(cached.fileShas);
+          setSelectedFile((prev) => resolveSelection(cached!.files, prev));
+          setLoadState('ready');
+        } else if (!cached?.files.length) {
+          setLoadState('loading');
+        }
+      } catch {
+        setLoadState('loading');
+      }
+
+      // 2) 后台校验 + 按 SHA 静默增量同步
       setVerifying(true);
-      setLoadState('loading');
       try {
         const access = await verifyGitHubAccessSimple(cfg.repo, cfg.token);
         if (!access.canRead) throw new Error('Token 无法读取该仓库');
 
         const updated = withVerifiedAccess(cfg, access);
         setSettings(updated);
-        await loadAllData(updated);
-        setLoadState('ready');
+        await loadAllData(updated, {
+          cached,
+          silent: Boolean(cached?.files.length),
+          requestId
+        });
+        if (requestId === loadRequestId.current) setLoadState('ready');
       } catch (err) {
-        setErrorMessage((err as Error).message);
-        setLoadState('error');
+        if (requestId !== loadRequestId.current) return;
+        // 有缓存时保留可读数据，只提示同步失败
+        if (cached?.files.length) {
+          setInfoMessage(`后台同步失败：${(err as Error).message}`);
+          setLoadState('ready');
+        } else {
+          setErrorMessage((err as Error).message);
+          setLoadState('error');
+        }
       } finally {
-        setVerifying(false);
+        if (requestId === loadRequestId.current) {
+          setVerifying(false);
+        }
       }
     }
     init();
@@ -222,9 +280,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSettings(newSettings);
       setErrorMessage(null);
       setInfoMessage(null);
-      setLoadState('loading');
 
-      const loadResult = await loadAllData(newSettings);
+      const cached = await readCacheSnapshot(newSettings.repo, newSettings.dataPath);
+      if (cached?.files.length) {
+        setLocalFiles(cached.files);
+        setFileShas(cached.fileShas);
+        setSelectedFile((prev) => resolveSelection(cached.files, prev));
+        setLoadState('ready');
+      } else {
+        setLoadState('loading');
+      }
+
+      const loadResult = await loadAllData(newSettings, {
+        cached,
+        silent: Boolean(cached?.files.length)
+      });
       setLoadState('ready');
 
       return { settings: newSettings, loadWarnings: loadResult.loadErrors };
@@ -234,6 +304,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clearAllSettings = useCallback(() => {
     clearSettings();
+    void clearAllDataCache();
     setSettings(loadSettings());
     setLocalFiles([]);
     setFileShas({});
@@ -302,6 +373,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const mergedMap = new Map(localFiles.map((f) => [f.fileName, f]));
       for (const entry of successes) {
         mergedMap.set(entry.fileName, entry);
+        const sha = newShas[entry.fileName];
+        if (sha) void putCachedFile(settings.repo, settings.dataPath, entry, sha);
       }
       const merged = Array.from(mergedMap.values());
       setLocalFiles(merged);
@@ -370,6 +443,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           delete next[fileName];
           return next;
         });
+        void removeCachedFile(settings.repo, settings.dataPath, fileName);
         setSelectedFile((prev) => (prev?.fileName === fileName ? null : prev));
         setInfoMessage(`已删除 ${fileName}`);
       } finally {

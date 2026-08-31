@@ -3,6 +3,8 @@ import clsx from 'clsx';
 import type { SheetData } from '../types';
 import { HotSheet } from './HotSheet';
 
+const SEARCH_DEBOUNCE_MS = 280;
+
 type SheetViewerProps = {
   sheets: SheetData[];
   fileKey: string;
@@ -11,13 +13,22 @@ type SheetViewerProps = {
 export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [mounted, setMounted] = useState<Set<number>>(() => new Set([0]));
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
   useEffect(() => {
     setActiveIndex(0);
     setMounted(new Set([0]));
-    setSearchQuery('');
+    setSearchInput('');
+    setDebouncedQuery('');
   }, [fileKey]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(searchInput);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     if (!sheets.length) return;
@@ -37,12 +48,12 @@ export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
 
   const matchCount = useMemo(() => {
     if (!active) return 0;
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     if (!q) return active.data.length;
     return active.data.filter((row) =>
       row.some((cell) => cell !== null && cell !== undefined && String(cell).toLowerCase().includes(q))
     ).length;
-  }, [active, searchQuery]);
+  }, [active, debouncedQuery]);
 
   if (!sheets.length) {
     return <p className="empty-hint">选择左侧文件，或前往上传页面添加数据。</p>;
@@ -59,7 +70,8 @@ export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
   }
 
   const showTabs = sheets.length > 1;
-  const hasQuery = Boolean(searchQuery.trim());
+  const hasQuery = Boolean(debouncedQuery.trim());
+  const searching = searchInput.trim() !== debouncedQuery.trim();
 
   return (
     <div className="sheet-viewer">
@@ -68,14 +80,16 @@ export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
           type="search"
           className="sheet-search"
           placeholder="搜索当前工作表…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           aria-label="搜索当前工作表"
         />
         <span className="sheet-search__meta">
-          {hasQuery
-            ? `匹配 ${matchCount.toLocaleString()} / ${active.data.length.toLocaleString()} 行`
-            : `${active.data.length.toLocaleString()} 行`}
+          {searching
+            ? '搜索中…'
+            : hasQuery
+              ? `匹配 ${matchCount.toLocaleString()} / ${active.data.length.toLocaleString()} 行`
+              : `${active.data.length.toLocaleString()} 行`}
         </span>
       </div>
 
@@ -105,7 +119,7 @@ export function SheetViewer({ sheets, fileKey }: SheetViewerProps) {
               key={`${fileKey}-${sheet.name}-${index}`}
               sheet={sheet}
               active={index === safeIndex}
-              searchQuery={searchQuery}
+              searchQuery={debouncedQuery}
             />
           ) : null
         )}

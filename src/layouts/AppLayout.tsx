@@ -39,7 +39,7 @@ export function AppLayout() {
 
         <div className="topbar__status">
           {verifying ? (
-            <span className="status-pill status-pill--loading">验证中</span>
+            <span className="status-pill status-pill--loading">同步中</span>
           ) : configured ? (
             <a
               href={repoUrl(settings.repo)}
