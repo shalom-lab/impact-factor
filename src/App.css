@@ -157,9 +157,9 @@
 
 .page--home {
   display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 16px;
-  padding: 16px;
+  grid-template-columns: 220px 1fr;
+  gap: 10px;
+  padding: 10px;
   height: calc(100vh - 52px);
   max-height: calc(100vh - 52px);
   overflow: hidden;
@@ -198,7 +198,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 8px 10px;
   border-bottom: 1px solid #f1f5f9;
   flex-shrink: 0;
 }
@@ -224,7 +224,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px;
+  padding: 6px;
 }
 
 .file-list ul {
@@ -397,8 +397,8 @@
 .sheet-viewer__toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid #f1f5f9;
   flex-shrink: 0;
 }
@@ -438,7 +438,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: 1px solid transparent;
   border-bottom: none;
   border-radius: 8px 8px 0 0;
@@ -511,9 +511,11 @@
 .hot-sheet .handsontable td,
 .hot-sheet .handsontable th {
   font-size: 12px !important;
-  line-height: 1.25 !important;
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
+  line-height: 1.2 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
 }
 
 .hot-sheet .handsontable .htCore th {
@@ -544,7 +546,7 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
+  padding: 4px 10px;
   border-top: 1px solid #f1f5f9;
   font-size: 0.75rem;
   color: #94a3b8;
