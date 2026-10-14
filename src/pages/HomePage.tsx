@@ -93,9 +93,18 @@ export function HomePage() {
         {selectedFile ? (
           <div className="file-meta file-meta--compact">
             <div className="file-meta__row">
-              <div className="file-meta__title">
+              <div className="file-meta__main">
                 <h3>{selectedFile.title}</h3>
                 <span className="file-meta__badge">{selectedFile.fileName}</span>
+                <span className="file-meta__stats">
+                  <span>{new Date(selectedFile.lastModified).toLocaleString()}</span>
+                  <span className="file-meta__sep">·</span>
+                  <span>{(selectedFile.size / 1024).toFixed(1)} KB</span>
+                  <span className="file-meta__sep">·</span>
+                  <span>{selectedFile.sheetCount} 个工作表</span>
+                  <span className="file-meta__sep">·</span>
+                  <span>{selectedFile.rowCount.toLocaleString()} 行</span>
+                </span>
               </div>
               <div className="file-meta__actions">
                 <button
@@ -117,12 +126,6 @@ export function HomePage() {
                   </button>
                 ) : null}
               </div>
-            </div>
-            <div className="file-meta__stats">
-              <span>{new Date(selectedFile.lastModified).toLocaleString()}</span>
-              <span>{(selectedFile.size / 1024).toFixed(1)} KB</span>
-              <span>{selectedFile.sheetCount} 个工作表</span>
-              <span>{selectedFile.rowCount.toLocaleString()} 行</span>
             </div>
           </div>
         ) : null}

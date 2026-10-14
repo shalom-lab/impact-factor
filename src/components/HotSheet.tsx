@@ -12,8 +12,11 @@ type HotSheetProps = {
 type ColumnScale = { min: number; max: number } | null;
 
 const NUMERIC_DOMINANCE = 0.7;
+/** Above this, skip Handsontable "filter by value" (builds a huge unique-value grid → lag). */
+const VALUE_FILTER_ROW_LIMIT = 1500;
+/** Cap rows scanned when computing heatmap scales. */
+const SCALE_SAMPLE_CAP = 4000;
 
-/** Parse a cell into a finite number; skip empty / non-numeric / textual values. */
 function parseNumeric(value: CellValue): number | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'boolean') return null;
@@ -22,22 +25,21 @@ function parseNumeric(value: CellValue): number | null {
   }
   const raw = String(value).trim();
   if (!raw) return null;
-  // Strip common thousand separators / percent / currency wrappers
   const cleaned = raw.replace(/,/g, '').replace(/%$/, '').replace(/^[¥$€£]\s?/, '');
   if (!cleaned || /[a-zA-Z\u4e00-\u9fff]/.test(cleaned)) return null;
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
 }
 
-/** Build per-column min/max for numeric-dominant columns on the current filtered rows. */
 function buildColumnScales(data: CellValue[][], colCount: number): ColumnScale[] {
   const scales: ColumnScale[] = [];
+  const sample = data.length > SCALE_SAMPLE_CAP ? data.slice(0, SCALE_SAMPLE_CAP) : data;
   for (let c = 0; c < colCount; c++) {
     let numeric = 0;
     let nonEmpty = 0;
     let min = Infinity;
     let max = -Infinity;
-    for (const row of data) {
+    for (const row of sample) {
       const cell = row[c];
       if (cell === null || cell === undefined || cell === '') continue;
       nonEmpty++;
@@ -56,19 +58,18 @@ function buildColumnScales(data: CellValue[][], colCount: number): ColumnScale[]
   return scales;
 }
 
-/** Continuous heatmap: pale blue (low) → stronger blue (high); luminance stays high for dark text. */
 function heatBackground(t: number): string {
   const x = Math.max(0, Math.min(1, t));
-  const h = 212 - x * 18; // blue → indigo-blue
+  const h = 212 - x * 18;
   const s = 72 + x * 12;
-  const l = 94 - x * 24; // 94% → 70%
+  const l = 94 - x * 24;
   return `hsl(${h} ${s}% ${l}%)`;
 }
 
 export function HotSheet({ sheet, active, searchQuery }: HotSheetProps) {
   const hotRef = useRef<HotTableRef>(null);
+  const scalesRef = useRef<ColumnScale[]>([]);
 
-  // Handsontable 排序/筛选可能原地改写 data，隔离一份副本避免污染全局 state
   const data = useMemo(() => sheet.data.map((row) => row.slice()), [sheet.data]);
   const colHeaders = useMemo(() => [...sheet.colHeaders], [sheet.colHeaders]);
 
@@ -85,9 +86,13 @@ export function HotSheet({ sheet, active, searchQuery }: HotSheetProps) {
     return buildColumnScales(filteredData, colCount);
   }, [filteredData, colHeaders]);
 
+  scalesRef.current = columnScales;
+  const hasAnyScale = useMemo(() => columnScales.some(Boolean), [columnScales]);
+
   const afterRenderer = useCallback(
     (td: HTMLTableCellElement, _row: number, col: number, _prop: string | number, value: CellValue) => {
-      const scale = columnScales[col];
+      if (!hasAnyScale) return;
+      const scale = scalesRef.current[col];
       if (!scale) return;
       const n = parseNumeric(value);
       if (n === null) return;
@@ -95,18 +100,25 @@ export function HotSheet({ sheet, active, searchQuery }: HotSheetProps) {
       td.style.backgroundColor = heatBackground(t);
       td.style.color = '#0f172a';
     },
-    [columnScales]
+    [hasAnyScale]
   );
+
+  const dropdownMenu = useMemo(() => {
+    if (filteredData.length > VALUE_FILTER_ROW_LIMIT) {
+      return ['filter_by_condition', 'filter_action_bar'];
+    }
+    return ['filter_by_condition', 'filter_by_value', 'filter_action_bar'];
+  }, [filteredData.length]);
 
   useEffect(() => {
     if (!active) return;
     const hot = hotRef.current?.hotInstance;
     if (!hot) return;
-    requestAnimationFrame(() => {
-      hot.render();
+    const id = requestAnimationFrame(() => {
       hot.refreshDimensions();
     });
-  }, [active, sheet.name, filteredData.length, searchQuery, columnScales]);
+    return () => cancelAnimationFrame(id);
+  }, [active, sheet.name, filteredData.length, searchQuery]);
 
   return (
     <div className={active ? 'hot-sheet hot-sheet--active' : 'hot-sheet'} aria-hidden={!active}>
@@ -120,20 +132,20 @@ export function HotSheet({ sheet, active, searchQuery }: HotSheetProps) {
         stretchH="all"
         width="100%"
         height="100%"
-        rowHeights={20}
-        columnHeaderHeight={24}
-        rowHeaderWidth={36}
+        rowHeights={18}
+        columnHeaderHeight={22}
+        rowHeaderWidth={34}
         autoWrapRow={false}
         autoWrapCol={false}
         manualColumnResize
-        manualRowResize
         columnSorting
         filters
-        search
-        dropdownMenu={['filter_by_condition', 'filter_by_value', 'filter_action_bar']}
+        dropdownMenu={dropdownMenu}
         contextMenu={['copy']}
         themeName="ht-theme-main"
-        afterRenderer={afterRenderer}
+        afterRenderer={hasAnyScale ? afterRenderer : undefined}
+        viewportRowRenderingOffset={20}
+        viewportColumnRenderingOffset={6}
       />
     </div>
   );

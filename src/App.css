@@ -198,14 +198,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-bottom: 1px solid #f1f5f9;
   flex-shrink: 0;
 }
 
 .panel-head h2 {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #334155;
 }
@@ -258,7 +258,7 @@
   text-align: left;
   border: none;
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: transparent;
   color: #334155;
   cursor: pointer;
@@ -271,13 +271,13 @@
 .file-list__select .title {
   display: block;
   font-weight: 600;
-  font-size: 0.84rem;
+  font-size: 0.75rem;
   line-height: 1.3;
 }
 
 .file-list__select .meta {
   color: #94a3b8;
-  font-size: 0.72rem;
+  font-size: 0.65rem;
 }
 
 .file-list__delete {
@@ -324,53 +324,70 @@
 /* ── File meta ── */
 .file-meta {
   background: #fff;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
-  padding: 12px 16px;
+  padding: 6px 10px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .file-meta--compact .file-meta__row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.file-meta__title {
-  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.file-meta__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   min-width: 0;
+  flex: 1;
 }
 
 .file-meta__actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .file-meta--compact h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .file-meta__badge {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   color: #64748b;
   background: #f1f5f9;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .file-meta__stats {
-  display: flex;
-  gap: 16px;
-  margin-top: 6px;
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  font-size: 0.68rem;
   color: #94a3b8;
+  line-height: 1.2;
+}
+
+.file-meta__stats > span {
+  white-space: nowrap;
+}
+
+.file-meta__sep {
+  margin: 0 0.35em;
+  color: #cbd5e1;
 }
 
 /* ── Sheet viewer (Handsontable) ── */
@@ -504,22 +521,22 @@
 }
 
 .hot-sheet .handsontable {
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .hot-sheet .handsontable td,
 .hot-sheet .handsontable th {
-  font-size: 12px !important;
-  line-height: 1.2 !important;
+  font-size: 11px !important;
+  line-height: 1.15 !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
-  padding-left: 4px !important;
-  padding-right: 4px !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
 }
 
 .hot-sheet .handsontable .htCore th {
-  font-size: 11px !important;
+  font-size: 10.5px !important;
   font-weight: 600;
 }
 
@@ -529,7 +546,9 @@
 .htFiltersConditionsMenu,
 .htDropdownMenu .htUIMultipleSelectHot,
 .handsontable.htMenu {
-  font-size: 12px !important;
+  font-size: 11px !important;
+  min-width: 220px !important;
+  max-width: 280px;
 }
 
 .htDropdownMenu .htItemWrapper,
@@ -539,7 +558,27 @@
 .htFiltersMenuCondition,
 .htFiltersMenuValue,
 .htUIMultipleSelectHot td {
-  font-size: 12px !important;
+  font-size: 11px !important;
+}
+
+.htDropdownMenu .htItemWrapper {
+  padding: 4px 8px !important;
+}
+
+.htDropdownMenu button,
+.htFiltersMenuCondition button,
+.htUIButtonOK,
+.htUIButtonCancel {
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+}
+
+.htDropdownMenu .htUIInput input,
+.htFiltersMenuCondition select,
+.htFiltersMenuCondition input {
+  font-size: 11px !important;
+  padding: 3px 6px !important;
+  min-height: 0 !important;
 }
 
 .sheet-viewer__foot {
