@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import clsx from 'clsx';
 import { GitHubIcon } from '../components/GitHubIcon';
+import { SheetLogo } from '../components/SheetLogo';
 import { repoUrl } from '../constants';
 import { useApp } from '../context/AppContext';
 
@@ -17,7 +18,7 @@ export function AppLayout() {
     <div className="layout">
       <header className="topbar">
         <div className="topbar__brand">
-          <span className="topbar__logo">SV</span>
+          <span className="topbar__logo" aria-hidden><SheetLogo size={32} /></span>
           <div>
             <strong>SheetView</strong>
             <span className="topbar__tagline">表格数据浏览</span>
