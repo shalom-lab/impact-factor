@@ -136,12 +136,12 @@ function buildColumnScales(data: CellValue[][], colCount: number): ColumnScale[]
   return scales;
 }
 
-/** Continuous scale: light → vivid indigo (must stay readable with dark text). */
+/** Continuous scale: light red → deep red (readable dark text on light end). */
 function heatBackground(t: number): string {
   const x = Math.max(0, Math.min(1, t));
-  const h = 215 - x * 35;
-  const s = 48 + x * 35;
-  const l = 90 - x * 42; // ~90% → ~48%
+  const h = 6 - x * 4; // soft rose → crimson
+  const s = 72 + x * 18;
+  const l = 94 - x * 46; // ~94% → ~48%
   return `hsl(${h} ${s}% ${l}%)`;
 }
 
