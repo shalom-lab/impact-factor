@@ -223,8 +223,8 @@ export function HotSheet({ sheet, active, searchQuery }: HotSheetProps) {
         stretchH="all"
         width="100%"
         height="100%"
-        rowHeights={18}
-        columnHeaderHeight={22}
+        rowHeights={17}
+        columnHeaderHeight={20}
         rowHeaderWidth={26}
         autoWrapRow={false}
         autoWrapCol={false}

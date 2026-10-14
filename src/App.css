@@ -414,19 +414,21 @@
 .sheet-viewer__toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 4px 8px;
   border-bottom: 1px solid #f1f5f9;
   flex-shrink: 0;
 }
 
 .sheet-search {
   flex: 1;
-  max-width: 360px;
-  padding: 7px 12px;
+  max-width: 280px;
+  height: 26px;
+  padding: 2px 8px;
   border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  font-size: 0.85rem;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.2;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -436,7 +438,7 @@
 }
 
 .sheet-search__meta {
-  font-size: 0.75rem;
+  font-size: 11px;
   color: #94a3b8;
   white-space: nowrap;
 }
@@ -535,9 +537,20 @@
   padding-right: 3px !important;
 }
 
-.hot-sheet .handsontable .htCore th {
-  font-size: 10.5px !important;
+.hot-sheet .handsontable .htCore th,
+.hot-sheet .ht_clone_top th,
+.hot-sheet .ht_clone_top_inline_start_corner th {
+  font-size: 10px !important;
   font-weight: 600;
+  height: 20px !important;
+  line-height: 1.1 !important;
+  padding: 0 4px !important;
+}
+
+.hot-sheet .handsontable thead th .colHeader,
+.hot-sheet .handsontable span.colHeader {
+  font-size: 10px !important;
+  line-height: 1.1 !important;
 }
 
 
