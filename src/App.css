@@ -540,6 +540,39 @@
   font-weight: 600;
 }
 
+
+/* Compact row headers (紫豆/高亮别太大) */
+.hot-sheet {
+  --ht-header-row-active-background-color: #c7d2fe;
+  --ht-header-active-background-color: #c7d2fe;
+  --ht-accent-color: #6366f1;
+}
+
+.hot-sheet .handsontable span.rowHeader,
+.hot-sheet .handsontable th .relative,
+.hot-sheet .ht_clone_inline_start th,
+.hot-sheet .ht_clone_top_inline_start_corner th {
+  font-size: 10px !important;
+  font-weight: 500;
+  padding: 0 2px !important;
+}
+
+.hot-sheet .ht_clone_inline_start th,
+.hot-sheet .ht_clone_top_inline_start_corner th {
+  min-width: 26px !important;
+  max-width: 28px !important;
+}
+
+.hot-sheet .handsontable td.htCenter,
+.hot-sheet .handsontable th.htCenter {
+  text-align: center !important;
+}
+
+.hot-sheet .handsontable td.htLeft,
+.hot-sheet .handsontable th.htLeft {
+  text-align: left !important;
+}
+
 /* Filter / dropdown menus (portal under body or inside ht) */
 .htDropdownMenu,
 .htFiltersMenuCondition,
