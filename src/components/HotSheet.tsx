@@ -9,7 +9,7 @@ type HotSheetProps = {
   searchQuery: string;
 };
 
-type ColumnScale = { min: number; max: number } | null;
+type ColumnScale = { min: number; max: number; ranks?: Map<number, number> } | null;
 type ColAlign = 'htCenter' | 'htLeft';
 
 const NUMERIC_DOMINANCE = 0.7;
@@ -117,7 +117,18 @@ function buildColumnScales(data: CellValue[][], colCount: number): ColumnScale[]
       if (n > max) max = n;
     }
     if (nonEmpty > 0 && numeric / nonEmpty >= NUMERIC_DOMINANCE && Number.isFinite(min) && Number.isFinite(max)) {
-      scales.push({ min, max });
+      // Collect numeric values again for discrete ranking when cardinality is small
+      const nums: number[] = [];
+      for (const row of sample) {
+        const n = parseNumeric(row[c]);
+        if (n !== null) nums.push(n);
+      }
+      const uniq = [...new Set(nums)].sort((a, b) => a - b);
+      let ranks: Map<number, number> | undefined;
+      if (uniq.length >= 2 && uniq.length <= 16) {
+        ranks = new Map(uniq.map((v, i) => [v, i]));
+      }
+      scales.push({ min, max, ranks });
     } else {
       scales.push(null);
     }
@@ -125,12 +136,20 @@ function buildColumnScales(data: CellValue[][], colCount: number): ColumnScale[]
   return scales;
 }
 
+/** Continuous scale: light → vivid indigo (must stay readable with dark text). */
 function heatBackground(t: number): string {
   const x = Math.max(0, Math.min(1, t));
-  const h = 212 - x * 18;
-  const s = 72 + x * 12;
-  const l = 94 - x * 24;
+  const h = 215 - x * 35;
+  const s = 48 + x * 35;
+  const l = 90 - x * 42; // ~90% → ~48%
   return `hsl(${h} ${s}% ${l}%)`;
+}
+
+/** Few distinct numbers (e.g. 分区 1–4): evenly spaced, clearly different fills. */
+function discreteHeatBackground(index: number, count: number): string {
+  if (count <= 1) return heatBackground(0.45);
+  const t = count === 1 ? 0.5 : index / (count - 1);
+  return heatBackground(t);
 }
 
 export function HotSheet({ sheet, active, searchQuery }: HotSheetProps) {
@@ -169,20 +188,25 @@ export function HotSheet({ sheet, active, searchQuery }: HotSheetProps) {
   const afterRenderer = useCallback(
     (td: HTMLTableCellElement, _row: number, col: number, _prop: string | number, value: CellValue) => {
       const align = alignsRef.current[col];
-      if (align === 'htCenter') {
-        td.style.textAlign = 'center';
-      } else {
-        td.style.textAlign = 'left';
-      }
+      td.style.textAlign = align === 'htCenter' ? 'center' : 'left';
 
       if (!hasAnyScale) return;
       const scale = scalesRef.current[col];
       if (!scale) return;
       const n = parseNumeric(value);
       if (n === null) return;
-      const t = scale.max === scale.min ? 0.5 : (n - scale.min) / (scale.max - scale.min);
-      td.style.backgroundColor = heatBackground(t);
-      td.style.color = '#0f172a';
+
+      let color: string;
+      if (scale.ranks && scale.ranks.has(n)) {
+        color = discreteHeatBackground(scale.ranks.get(n)!, scale.ranks.size);
+      } else if (scale.max === scale.min) {
+        color = heatBackground(0.45);
+      } else {
+        color = heatBackground((n - scale.min) / (scale.max - scale.min));
+      }
+      // Beat Handsontable selection / theme backgrounds
+      td.style.setProperty('background-color', color, 'important');
+      td.style.setProperty('color', '#0f172a', 'important');
     },
     [hasAnyScale]
   );
