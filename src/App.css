@@ -539,23 +539,32 @@
 
 .hot-sheet .handsontable .htCore th,
 .hot-sheet .ht_clone_top th,
-.hot-sheet .ht_clone_top_inline_start_corner th {
+.hot-sheet .ht_clone_top_inline_start_corner th,
+.hot-sheet .ht_clone_top_inline_start_corner thead th {
   font-size: 10px !important;
   font-weight: 600;
-  height: 20px !important;
-  line-height: 1.1 !important;
-  padding: 0 4px !important;
+  height: 18px !important;
+  max-height: 18px !important;
+  line-height: 14px !important;
+  padding: 0 3px !important;
 }
 
 .hot-sheet .handsontable thead th .colHeader,
-.hot-sheet .handsontable span.colHeader {
+.hot-sheet .handsontable span.colHeader,
+.hot-sheet .ht_clone_top span.colHeader {
   font-size: 10px !important;
-  line-height: 1.1 !important;
+  line-height: 14px !important;
+  font-weight: 600 !important;
 }
 
 
-/* Compact row headers (紫豆/高亮别太大) */
-.hot-sheet {
+/* Compact headers: Handsontable theme defaults to 14px via --ht-font-size */
+.hot-sheet,
+.hot-sheet .handsontable {
+  --ht-font-size: 10px;
+  --ht-font-size-small: 9px;
+  --ht-line-height: 14px;
+  --ht-line-height-small: 12px;
   --ht-header-row-active-background-color: #c7d2fe;
   --ht-header-active-background-color: #c7d2fe;
   --ht-accent-color: #6366f1;
