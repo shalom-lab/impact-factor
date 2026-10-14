@@ -120,6 +120,9 @@ export function HotSheet({ sheet, active, searchQuery }: HotSheetProps) {
         stretchH="all"
         width="100%"
         height="100%"
+        rowHeights={22}
+        columnHeaderHeight={26}
+        rowHeaderWidth={42}
         autoWrapRow={false}
         autoWrapCol={false}
         manualColumnResize

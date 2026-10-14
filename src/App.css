@@ -504,7 +504,40 @@
 }
 
 .hot-sheet .handsontable {
-  font-size: 0.82rem;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.hot-sheet .handsontable td,
+.hot-sheet .handsontable th {
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.hot-sheet .handsontable .htCore th {
+  font-size: 11px !important;
+  font-weight: 600;
+}
+
+/* Filter / dropdown menus (portal under body or inside ht) */
+.htDropdownMenu,
+.htFiltersMenuCondition,
+.htFiltersConditionsMenu,
+.htDropdownMenu .htUIMultipleSelectHot,
+.handsontable.htMenu {
+  font-size: 12px !important;
+}
+
+.htDropdownMenu .htItemWrapper,
+.htDropdownMenu input,
+.htDropdownMenu button,
+.htDropdownMenu .htUIInput input,
+.htFiltersMenuCondition,
+.htFiltersMenuValue,
+.htUIMultipleSelectHot td {
+  font-size: 12px !important;
 }
 
 .sheet-viewer__foot {
